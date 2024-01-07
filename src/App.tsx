@@ -340,6 +340,7 @@ function App() {
         <Toolbar />
       </div>
       <div className="card">
+        <div className="h-border" />
         <Grid />
       </div>
     </GameStateWithSetterContext.Provider>

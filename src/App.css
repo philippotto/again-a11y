@@ -90,12 +90,18 @@
 .grid-table {
   width: 1500px;
   table-layout: fixed;
-
-  td {
-    text-align: center;
-  }
 }
 
 .cell {
   text-align: center;
+}
+
+.h-border {
+  position: absolute;
+  left: 729px;
+  width: 100px;
+  height: 900px;
+  border: 4px solid #e91c1c;
+  border-radius: 25px;
+  pointer-events: none;
 }
