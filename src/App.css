@@ -1,9 +1,9 @@
-#root {
+/*#root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
-}
+}*/
 
 .logo {
   height: 6em;
@@ -43,7 +43,7 @@
 
 .cell {
   width: 100px;
-  height: 70px;
+  height: 100px;
   cursor: pointer;
   user-select: none;
   border-radius: 10%;
@@ -69,4 +69,33 @@
 
 .red {
   background: #e71564;
+}
+
+.white {
+  background: white;
+}
+
+.table-head {
+  font-weight: 800;
+  font-size: 32px;
+  text-align: center;
+}
+
+.star {
+  -webkit-text-stroke-width: 3px;
+  -webkit-text-stroke-color: white;
+  color: #ffffff21;
+}
+
+.grid-table {
+  width: 1500px;
+  table-layout: fixed;
+
+  td {
+    text-align: center;
+  }
+}
+
+.cell {
+  text-align: center;
 }

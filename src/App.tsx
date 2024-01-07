@@ -6,7 +6,10 @@ import React from "react";
 
 const columnNames = "abcdefghijklmno";
 
-const gameLayout = `
+const CROSS = "✗";
+const STAR = "★";
+
+const GAME_LAYOUT = `
 goBbrry
 gggroBy
 gYrrobb
@@ -25,6 +28,27 @@ yggbrOo
 `
   .trim()
   .split("\n");
+
+const ROW_COUNT = GAME_LAYOUT[0].length;
+const COL_COUNT = GAME_LAYOUT.length;
+
+const BONUS_PER_COLUMN = [
+  [5, 3],
+  [3, 2],
+  [3, 2],
+  [3, 2],
+  [2, 1],
+  [2, 1],
+  [2, 1],
+  [1, 0],
+  [2, 1],
+  [2, 1],
+  [2, 1],
+  [3, 2],
+  [3, 2],
+  [3, 2],
+  [5, 3],
+];
 
 const letterToColorName: Record<string, string> = {
   y: "yellow",
@@ -94,7 +118,7 @@ export const GameStateWithSetterContext = React.createContext({
 });
 
 function getField(colIdx: number, rowIdx: number, gameState: GameState) {
-  const encoded = gameLayout[colIdx][rowIdx];
+  const encoded = GAME_LAYOUT[colIdx][rowIdx];
   return {
     color: letterToColorName[encoded.toLowerCase() as any] as Color,
     hasStar: encoded.toLowerCase() !== encoded,
@@ -106,7 +130,11 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
   const { gameState, setGameState } = React.useContext(GameStateWithSetterContext);
 
   const { color, hasStar, value } = getField(colIdx, rowIdx, gameState);
+  const showStar = hasStar && !value;
   const onClick = () => {
+    if (!isApproachable(gameState, rowIdx, colIdx, true)) {
+      return;
+    }
     setGameState((old: GameState): void => {
       old.grid[colIdx][rowIdx] = old.grid[colIdx][rowIdx] === 1 ? 0 : 1;
     });
@@ -115,24 +143,93 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
   return (
     <td
       onClick={onClick}
-      className={`cell ${color}`}
+      className={`cell ${color} ${showStar ? "star" : ""}`}
       style={{
         opacity: getOpacityForCell(gameState, rowIdx, colIdx),
       }}
     >
-      {value ? "✗" : hasStar ? "★" : ""}
+      {value ? CROSS : hasStar ? STAR : ""}
     </td>
   );
 }
 
+const NEIGHBOR_OFFSETS = [
+  [-1, 0],
+  [+1, 0],
+  [0, -1],
+  [0, +1],
+];
+
+function isApproachable(
+  gameState: GameState,
+  rowIdx: number,
+  colIdx: number,
+  direct: boolean,
+  _visitedSet: Set<string> | null = null,
+) {
+  const visitedSet = _visitedSet || new Set();
+  const keyStr = `${rowIdx}-${colIdx}`;
+
+  if (visitedSet.has(keyStr)) {
+    return false;
+  }
+  visitedSet.add(keyStr);
+
+  const { color, value } = getField(colIdx, rowIdx, gameState);
+  if (colIdx === 7) {
+    return true;
+  }
+  if (value) {
+    return true;
+  }
+
+  for (const offset of NEIGHBOR_OFFSETS) {
+    const [dx, dy] = offset;
+
+    if (
+      !(colIdx + dx >= 0 && colIdx + dx < COL_COUNT && rowIdx + dy >= 0 && rowIdx + dy < ROW_COUNT)
+    ) {
+      continue;
+    }
+
+    const { color: neighborColor, value: neighborValue } = getField(
+      colIdx + dx,
+      rowIdx + dy,
+      gameState,
+    );
+
+    if (neighborValue) {
+      return true;
+    }
+
+    if (
+      !direct &&
+      color === neighborColor &&
+      isApproachable(gameState, rowIdx + dy, colIdx + dx, direct, visitedSet)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getOpacityForCell(gameState: GameState, rowIdx: number, colIdx: number) {
+  const { color } = getField(colIdx, rowIdx, gameState);
+  const matchesHighlightColor =
+    gameState.highlight.colors.length === 0 || gameState.highlight.colors.includes(color);
   if (gameState.highlight.tickable) {
-    if (colIdx !== 7) {
+    if (matchesHighlightColor && isApproachable(gameState, rowIdx, colIdx, true)) {
+      return 1;
+    }
+    if (matchesHighlightColor && isApproachable(gameState, rowIdx, colIdx, false)) {
       return 0.5;
     }
-    return 1;
+
+    return 0.2;
   }
-  return 1;
+
+  return matchesHighlightColor ? 1 : 0.2;
 }
 
 function getOpacityForColor(gameState: GameState, color: Color) {
@@ -141,27 +238,43 @@ function getOpacityForColor(gameState: GameState, color: Color) {
 }
 
 function Grid() {
-  // const { gameState, setGameState } = React.useContext(GameStateWithSetterContext);
-
   const rows = [];
 
   const headerRow = [];
-  for (const colIdx of _.range(0, gameLayout.length)) {
+  for (const colIdx of _.range(0, GAME_LAYOUT.length)) {
     headerRow.push(<td>{columnNames[colIdx].toUpperCase()}</td>);
   }
 
-  rows.push(<tr>{headerRow}</tr>);
+  rows.push(<tr className="table-head">{headerRow}</tr>);
 
-  for (const rowIdx of _.range(0, gameLayout[0].length)) {
+  for (const rowIdx of _.range(0, ROW_COUNT)) {
     const currentRow = [];
-    for (const colIdx of _.range(0, gameLayout.length)) {
+    for (const colIdx of _.range(0, COL_COUNT)) {
       currentRow.push(<Cell key={colIdx} colIdx={colIdx} rowIdx={rowIdx} />);
     }
     rows.push(<tr key={rowIdx}>{currentRow}</tr>);
   }
 
+  const bonusRow1 = [];
+  const bonusRow2 = [];
+  for (const [bonus1, bonus2] of BONUS_PER_COLUMN) {
+    bonusRow1.push(<td>{bonus1}</td>);
+    bonusRow2.push(<td>{bonus2}</td>);
+  }
+  rows.push(
+    <tr className="table-head" key={ROW_COUNT}>
+      {bonusRow1}
+    </tr>,
+  );
+  rows.push(
+    <tr className="table-head" key={ROW_COUNT + 1}>
+      {bonusRow2}
+    </tr>,
+  );
+
   return (
     <table
+      className="grid-table"
       style={{
         borderSpacing: 4,
       }}
@@ -196,6 +309,19 @@ function Toolbar() {
           onClick={() => handleColorClick(color)}
         />
       ))}
+      <div
+        className={`cell white`}
+        style={{
+          opacity: gameState.highlight.tickable ? 1 : 0.25,
+        }}
+        onClick={() =>
+          setGameState((oldState) => {
+            oldState.highlight.tickable = !oldState.highlight.tickable;
+          })
+        }
+      >
+        {CROSS}
+      </div>
     </div>
   );
 }
