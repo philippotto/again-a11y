@@ -168,9 +168,7 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
         buttons: [
           {
             label: "Ok",
-            onClick: () => {
-              changeModalVisibility(false);
-            },
+            onClick: () => changeModalVisibility(false),
           },
         ],
       });
@@ -186,20 +184,15 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
       confirmAlert({
         title: "Das Feld ist bereits abgekreuzt. Kreuz löschen?",
         closeOnClickOutside: false,
-
+        // @ts-ignore
+        afterClose: () => changeModalVisibility(false),
         buttons: [
           {
             label: "Ja, Kreuz löschen",
-            onClick: () => {
-              toggleCross();
-              changeModalVisibility(false);
-            },
+            onClick: toggleCross,
           },
           {
             label: "Nein, Kreuz behalten",
-            onClick: () => {
-              changeModalVisibility(false);
-            },
           },
         ],
       });
