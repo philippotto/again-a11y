@@ -111,7 +111,8 @@
 
 .joker-cell {
   text-align: center;
-  font-size: 40px;
+  font-size: 55px;
+  line-height: 1;
   color: black;
   border-radius: 25px;
   background: #f7fffe;
@@ -120,6 +121,7 @@
   height: 50px;
   border-radius: 100%;
   font-weight: bold;
+  cursor: pointer;
 }
 
 .h-border {
@@ -146,4 +148,17 @@
 
 .react-confirm-alert-body {
   width: 100% !important;
+}
+
+.green-column-points-field {
+  background: #95be29;
+  color: rgba(0, 0, 0, 0.8);
+}
+.red-column-points-field {
+  background: #e71564;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.bonus-row-for-columns td {
+  border-radius: 10px;
 }

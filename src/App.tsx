@@ -1,8 +1,6 @@
 /*
  * Todo:
  * - allow scratching
- *   - joker
- *   - columns
  *   - colors
  * - helpful tooltips?
  * - save gamestate in localstorage
@@ -90,6 +88,7 @@ type GameState = {
     tickable: boolean;
     inColumns: Array<string>;
   };
+  crossedColumnPoints: boolean[];
   jokers: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean];
   uiInfo: {
     // should not be stored across page loads
@@ -131,6 +130,7 @@ const initialGameState: GameState = {
     inColumns: [],
   },
   jokers: _.range(JOKER_COUNT).map(() => false) as any,
+  crossedColumnPoints: _.range(COL_COUNT).map(() => false) as any,
   uiInfo: {
     // should not be stored across page loads
     isShowingModal: false,
@@ -300,14 +300,15 @@ function getOpacityForColor(gameState: GameState, color: Color) {
 }
 
 function Grid() {
+  const { gameState, setGameState } = React.useContext(GameStateWithSetterContext);
   const rows = [];
 
-  const headerRow = [];
-  for (const colIdx of _.range(0, GAME_LAYOUT.length)) {
-    headerRow.push(<td>{columnNames[colIdx].toUpperCase()}</td>);
-  }
+  const headerItems = _.range(0, GAME_LAYOUT.length).map((colIdx) => (
+    <td>{columnNames[colIdx].toUpperCase()}</td>
+  ));
 
-  rows.push(<tr className="table-head">{headerRow}</tr>);
+  const headerRow = <tr className="table-head">{headerItems}</tr>;
+  rows.push(headerRow);
 
   for (const rowIdx of _.range(0, ROW_COUNT)) {
     const currentRow = [];
@@ -317,22 +318,75 @@ function Grid() {
     rows.push(<tr key={rowIdx}>{currentRow}</tr>);
   }
 
+  const { isColumnComplete } = getStarsAndColumnPoints(gameState);
+
   const bonusRow1 = [];
   const bonusRow2 = [];
-  for (const [bonus1, bonus2] of BONUS_PER_COLUMN) {
-    bonusRow1.push(<td>{bonus1}</td>);
-    bonusRow2.push(<td>{bonus2}</td>);
+  for (const colIdx of _.range(COL_COUNT)) {
+    const [bonus1, bonus2] = BONUS_PER_COLUMN[colIdx];
+    const isCurrentColumnComplete = isColumnComplete[colIdx];
+    const getsHighBonus = isCurrentColumnComplete && !gameState.crossedColumnPoints[colIdx];
+    const getsLowBonus = isCurrentColumnComplete && gameState.crossedColumnPoints[colIdx];
+    const handleToggleCrossedColumnPoint = () => {
+      const toggleCross = () =>
+        setGameState((oldState) => {
+          oldState.crossedColumnPoints[colIdx] = !oldState.crossedColumnPoints[colIdx];
+        });
+
+      if (gameState.crossedColumnPoints[colIdx]) {
+        confirmAlert({
+          title: "Die Spalte wurde bereits abgekreuzt. Kreuz löschen?",
+          closeOnClickOutside: false,
+          // @ts-ignore
+          afterClose: () => changeModalVisibility(false),
+          buttons: [
+            {
+              label: "Ja, Kreuz löschen",
+              onClick: toggleCross,
+            },
+            {
+              label: "Nein, Kreuz behalten",
+            },
+          ],
+        });
+      } else {
+        toggleCross();
+      }
+    };
+    bonusRow1.push(
+      <td
+        onClick={handleToggleCrossedColumnPoint}
+        className={
+          getsHighBonus
+            ? "green-column-points-field"
+            : gameState.crossedColumnPoints[colIdx]
+              ? "red-column-points-field"
+              : ""
+        }
+      >
+        {bonus1}
+      </td>,
+    );
+    bonusRow2.push(
+      <td
+        onClick={handleToggleCrossedColumnPoint}
+        className={getsLowBonus ? "green-column-points-field" : ""}
+      >
+        {bonus2}
+      </td>,
+    );
   }
   rows.push(
-    <tr className="table-head" key={ROW_COUNT}>
+    <tr className="table-head bonus-row-for-columns" key={ROW_COUNT}>
       {bonusRow1}
     </tr>,
   );
   rows.push(
-    <tr className="table-head" key={ROW_COUNT + 1}>
+    <tr className="table-head bonus-row-for-columns" key={ROW_COUNT + 1}>
       {bonusRow2}
     </tr>,
   );
+  rows.push(headerRow);
 
   return (
     <table
@@ -392,20 +446,7 @@ function Toolbar() {
     });
   };
 
-  let missingStarCount = 0;
-  let columnPoints = 0;
-  for (const colIdx of _.range(0, COL_COUNT)) {
-    let hasAllInColumn = true;
-    for (const rowIdx of _.range(0, ROW_COUNT)) {
-      const { hasStar, value } = getField(colIdx, rowIdx, gameState);
-      missingStarCount += hasStar && !value ? 1 : 0;
-      hasAllInColumn = hasAllInColumn && value === 1;
-    }
-    if (hasAllInColumn) {
-      // todo: might only be the second bonus
-      columnPoints += BONUS_PER_COLUMN[colIdx][0];
-    }
-  }
+  const { missingStarCount, columnPoints } = getStarsAndColumnPoints(gameState);
   const bonusPointInfo = getBonusPointInfo(gameState);
   const bonusPoints = bonusPointInfo.totalBonusPoints;
   const jokerPoints = gameState.jokers.filter((el) => !el).length;
@@ -505,6 +546,26 @@ function Toolbar() {
       </table>
     </div>
   );
+}
+
+function getStarsAndColumnPoints(gameState: GameState) {
+  let missingStarCount = 0;
+  let columnPoints = 0;
+  const isColumnComplete = _.range(COL_COUNT).map(() => false);
+  for (const colIdx of _.range(0, COL_COUNT)) {
+    let hasAllInColumn = true;
+    for (const rowIdx of _.range(0, ROW_COUNT)) {
+      const { hasStar, value } = getField(colIdx, rowIdx, gameState);
+      missingStarCount += hasStar && !value ? 1 : 0;
+      hasAllInColumn = hasAllInColumn && value === 1;
+    }
+    if (hasAllInColumn) {
+      // todo: might only be the second bonus
+      columnPoints += BONUS_PER_COLUMN[colIdx][0];
+    }
+    isColumnComplete[colIdx] = hasAllInColumn;
+  }
+  return { missingStarCount, columnPoints, isColumnComplete };
 }
 
 function App() {
