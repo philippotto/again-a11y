@@ -47,8 +47,9 @@
   cursor: pointer;
   user-select: none;
   border-radius: 10%;
-  font-size: 48px;
-  color: black;
+  font-size: 66px;
+  color: #000000;
+  text-align: center;
 }
 
 .yellow {
@@ -72,7 +73,8 @@
 }
 
 .white {
-  background: white;
+  background: #7b00b4;
+  color: #fbe3ff;
 }
 
 .table-head {
@@ -92,8 +94,13 @@
   table-layout: fixed;
 }
 
-.cell {
+.point-cell {
   text-align: center;
+  font-size: 48px;
+  background: #7b00b4;
+  border-radius: 25px;
+  color: #fbe3ff;
+  padding: 12px;
 }
 
 .h-border {
@@ -104,4 +111,20 @@
   border: 4px solid #e91c1c;
   border-radius: 25px;
   pointer-events: none;
+}
+
+.small {
+  font-size: 24px;
+}
+
+.react-confirm-alert-button-group > button {
+  font-size: 3.2em !important;
+}
+
+.react-confirm-alert-overlay {
+  background: rgb(53 53 53 / 90%) !important;
+}
+
+.react-confirm-alert-body {
+  width: 100% !important;
 }

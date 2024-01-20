@@ -1,8 +1,23 @@
+/*
+ * Todo:
+ * - allow scratching
+ *   - joker
+ *   - columns
+ *   - colors
+ * - helpful tooltips?
+ * - lock fields after some seconds
+ * - save gamestate in localstorage
+ *   - "restore button"
+ */
+
 import { useState } from "react";
 import "./App.css";
 import _ from "lodash";
 import { produce } from "immer";
 import React from "react";
+
+import { confirmAlert } from "react-confirm-alert";
+import "react-confirm-alert/src/react-confirm-alert.css";
 
 const columnNames = "abcdefghijklmno";
 
@@ -61,7 +76,7 @@ const letterToColorName: Record<string, string> = {
 type Color = "yellow" | "green" | "orange" | "blue" | "red";
 
 type GameState = {
-  grid: number[][];
+  grid: (0 | 1)[][];
   highlight: {
     // - normal
     // - if a specific color
@@ -76,6 +91,7 @@ type GameState = {
     tickable: boolean;
     inColumns: Array<string>;
   };
+  jokerCount: number;
 };
 
 const initialGameState: GameState = {
@@ -110,6 +126,7 @@ const initialGameState: GameState = {
     colors: [],
     inColumns: [],
   },
+  jokerCount: 8,
 };
 
 export const GameStateWithSetterContext = React.createContext({
@@ -133,11 +150,42 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
   const showStar = hasStar && !value;
   const onClick = () => {
     if (!isApproachable(gameState, rowIdx, colIdx, true)) {
+      confirmAlert({
+        title: "Das Feld ist noch nicht erreichbar.",
+        closeOnClickOutside: false,
+        buttons: [
+          {
+            label: "Ok",
+            onClick: () => {},
+          },
+        ],
+      });
+
       return;
     }
-    setGameState((old: GameState): void => {
-      old.grid[colIdx][rowIdx] = old.grid[colIdx][rowIdx] === 1 ? 0 : 1;
-    });
+    const toggleCross = () =>
+      setGameState((old: GameState): void => {
+        old.grid[colIdx][rowIdx] = old.grid[colIdx][rowIdx] === 1 ? 0 : 1;
+      });
+    if (value) {
+      confirmAlert({
+        title: "Das Feld ist bereits abgekreuzt. Kreuz löschen?",
+        closeOnClickOutside: false,
+
+        buttons: [
+          {
+            label: "Ja, Kreuz löschen",
+            onClick: toggleCross,
+          },
+          {
+            label: "Nein, Kreuz behalten",
+            onClick: () => {},
+          },
+        ],
+      });
+    } else {
+      toggleCross();
+    }
   };
 
   return (
@@ -284,6 +332,38 @@ function Grid() {
   );
 }
 
+type BonusPointInfo = {
+  missingByColor: Record<Color, number>;
+  totalBonusPoints: number;
+};
+
+function getBonusPointInfo(gameState: GameState) {
+  const info: BonusPointInfo = {
+    missingByColor: {
+      yellow: 0,
+      green: 0,
+      orange: 0,
+      blue: 0,
+      red: 0,
+    },
+    totalBonusPoints: 0,
+  };
+
+  for (const colIdx of _.range(0, COL_COUNT)) {
+    for (const rowIdx of _.range(0, ROW_COUNT)) {
+      const { value, color } = getField(colIdx, rowIdx, gameState);
+      if (value === 0) {
+        info.missingByColor[color]++;
+      }
+    }
+  }
+
+  info.totalBonusPoints =
+    Object.values(info.missingByColor).filter((count) => count === 0).length * 5;
+
+  return info;
+}
+
 function Toolbar() {
   const { gameState, setGameState } = React.useContext(GameStateWithSetterContext);
   const colors = Object.values(letterToColorName) as Color[];
@@ -298,6 +378,26 @@ function Toolbar() {
     });
   };
 
+  let missingStarCount = 0;
+  let columnPoints = 0;
+  for (const colIdx of _.range(0, COL_COUNT)) {
+    let hasAllInColumn = true;
+    for (const rowIdx of _.range(0, ROW_COUNT)) {
+      const { hasStar, value } = getField(colIdx, rowIdx, gameState);
+      missingStarCount += hasStar && !value ? 1 : 0;
+      hasAllInColumn = hasAllInColumn && value === 1;
+    }
+    if (hasAllInColumn) {
+      // todo: might only be the second bonus
+      columnPoints += BONUS_PER_COLUMN[colIdx][0];
+    }
+  }
+  const bonusPointInfo = getBonusPointInfo(gameState);
+  const bonusPoints = bonusPointInfo.totalBonusPoints;
+  const jokerPoints = gameState.jokerCount;
+  const starPoints = -2 * missingStarCount;
+  const totalPoints = bonusPoints + columnPoints + jokerPoints + starPoints;
+
   return (
     <div style={{ display: "flex" }}>
       {colors.map((color: Color) => (
@@ -307,7 +407,9 @@ function Toolbar() {
             opacity: getOpacityForColor(gameState, color),
           }}
           onClick={() => handleColorClick(color)}
-        />
+        >
+          {bonusPointInfo.missingByColor[color]}
+        </div>
       ))}
       <div
         className={`cell white`}
@@ -322,6 +424,26 @@ function Toolbar() {
       >
         {CROSS}
       </div>
+      <table>
+        <tr>
+          <td className="point-cell">Bonus</td>
+          <td className="point-cell">A-O</td>
+          <td className="point-cell">
+            ! <span className="small">(+1)</span>
+          </td>
+          <td className="point-cell">
+            {STAR} <span className="small">(-2)</span>
+          </td>
+          <td className="point-cell">Total</td>
+        </tr>
+        <tr>
+          <td className="point-cell">{bonusPoints}</td>
+          <td className="point-cell">{columnPoints}</td>
+          <td className="point-cell">{jokerPoints}</td>
+          <td className="point-cell">{starPoints}</td>
+          <td className="point-cell">{totalPoints}</td>
+        </tr>
+      </table>
     </div>
   );
 }
