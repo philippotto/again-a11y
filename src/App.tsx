@@ -560,8 +560,7 @@ function getStarsAndColumnPoints(gameState: GameState) {
       hasAllInColumn = hasAllInColumn && value === 1;
     }
     if (hasAllInColumn) {
-      // todo: might only be the second bonus
-      columnPoints += BONUS_PER_COLUMN[colIdx][0];
+      columnPoints += BONUS_PER_COLUMN[colIdx][gameState.crossedColumnPoints[colIdx] ? 1 : 0];
     }
     isColumnComplete[colIdx] = hasAllInColumn;
   }
