@@ -90,13 +90,14 @@ type GameState = {
     tickable: boolean;
     inColumns: Array<string>;
   };
-  jokerCount: number;
+  jokers: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean];
   uiInfo: {
     // should not be stored across page loads
     isShowingModal: boolean;
   };
 };
 
+const JOKER_COUNT = 8;
 const initialGameState: GameState = {
   grid: [
     [0, 0, 0, 0, 0, 0, 0],
@@ -129,7 +130,7 @@ const initialGameState: GameState = {
     colors: [],
     inColumns: [],
   },
-  jokerCount: 8,
+  jokers: _.range(JOKER_COUNT).map(() => false) as any,
   uiInfo: {
     // should not be stored across page loads
     isShowingModal: false,
@@ -407,35 +408,80 @@ function Toolbar() {
   }
   const bonusPointInfo = getBonusPointInfo(gameState);
   const bonusPoints = bonusPointInfo.totalBonusPoints;
-  const jokerPoints = gameState.jokerCount;
+  const jokerPoints = gameState.jokers.filter((el) => !el).length;
   const starPoints = -2 * missingStarCount;
   const totalPoints = bonusPoints + columnPoints + jokerPoints + starPoints;
 
+  const changeModalVisibility = (visibility: boolean) =>
+    setGameState((old: GameState): void => {
+      old.uiInfo.isShowingModal = visibility;
+    });
+
   return (
-    <div style={{ display: "flex" }}>
-      {colors.map((color: Color) => (
-        <div
-          className={`cell ${color}`}
-          style={{
-            opacity: getOpacityForColor(gameState, color),
-          }}
-          onClick={() => handleColorClick(color)}
-        >
-          {bonusPointInfo.missingByColor[color]}
+    <div className="toolbar" style={{ display: "flex" }}>
+      <div className="buttons" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="color-buttons" style={{ display: "flex" }}>
+          {colors.map((color: Color) => (
+            <div
+              className={`cell ${color}`}
+              style={{
+                opacity: getOpacityForColor(gameState, color),
+              }}
+              onClick={() => handleColorClick(color)}
+            >
+              {bonusPointInfo.missingByColor[color]}
+            </div>
+          ))}
+          <div
+            className={`cell white`}
+            style={{
+              opacity: gameState.highlight.tickable ? 1 : 0.25,
+            }}
+            onClick={() =>
+              setGameState((oldState) => {
+                oldState.highlight.tickable = !oldState.highlight.tickable;
+              })
+            }
+          >
+            {CROSS}
+          </div>
         </div>
-      ))}
-      <div
-        className={`cell white`}
-        style={{
-          opacity: gameState.highlight.tickable ? 1 : 0.25,
-        }}
-        onClick={() =>
-          setGameState((oldState) => {
-            oldState.highlight.tickable = !oldState.highlight.tickable;
-          })
-        }
-      >
-        {CROSS}
+
+        <div className="joker-buttons">
+          {_.range(0, JOKER_COUNT).map((jokerIdx) => (
+            <div
+              className="joker-cell"
+              onClick={() => {
+                const toggleCross = () =>
+                  setGameState((oldState) => {
+                    oldState.jokers[jokerIdx] = !oldState.jokers[jokerIdx];
+                  });
+                if (gameState.jokers[jokerIdx]) {
+                  changeModalVisibility(true);
+                  confirmAlert({
+                    title: "Der Joker wurde bereits abgekreuzt. Kreuz löschen?",
+                    closeOnClickOutside: false,
+                    // @ts-ignore
+                    afterClose: () => changeModalVisibility(false),
+                    buttons: [
+                      {
+                        label: "Ja, Kreuz löschen",
+                        onClick: toggleCross,
+                      },
+                      {
+                        label: "Nein, Kreuz behalten",
+                      },
+                    ],
+                  });
+                } else {
+                  toggleCross();
+                }
+              }}
+            >
+              {gameState.jokers[jokerIdx] ? CROSS : "!"}
+            </div>
+          ))}
+        </div>
       </div>
       <table>
         <tr>
