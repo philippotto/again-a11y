@@ -5,7 +5,6 @@
  *   - columns
  *   - colors
  * - helpful tooltips?
- * - lock fields after some seconds
  * - save gamestate in localstorage
  *   - "restore button"
  */
@@ -92,6 +91,10 @@ type GameState = {
     inColumns: Array<string>;
   };
   jokerCount: number;
+  uiInfo: {
+    // should not be stored across page loads
+    isShowingModal: boolean;
+  };
 };
 
 const initialGameState: GameState = {
@@ -127,6 +130,10 @@ const initialGameState: GameState = {
     inColumns: [],
   },
   jokerCount: 8,
+  uiInfo: {
+    // should not be stored across page loads
+    isShowingModal: false,
+  },
 };
 
 export const GameStateWithSetterContext = React.createContext({
@@ -148,15 +155,22 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
 
   const { color, hasStar, value } = getField(colIdx, rowIdx, gameState);
   const showStar = hasStar && !value;
+  const changeModalVisibility = (visibility: boolean) =>
+    setGameState((old: GameState): void => {
+      old.uiInfo.isShowingModal = visibility;
+    });
   const onClick = () => {
     if (!isApproachable(gameState, rowIdx, colIdx, true)) {
+      changeModalVisibility(true);
       confirmAlert({
         title: "Das Feld ist noch nicht erreichbar.",
         closeOnClickOutside: false,
         buttons: [
           {
             label: "Ok",
-            onClick: () => {},
+            onClick: () => {
+              changeModalVisibility(false);
+            },
           },
         ],
       });
@@ -168,6 +182,7 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
         old.grid[colIdx][rowIdx] = old.grid[colIdx][rowIdx] === 1 ? 0 : 1;
       });
     if (value) {
+      changeModalVisibility(true);
       confirmAlert({
         title: "Das Feld ist bereits abgekreuzt. Kreuz löschen?",
         closeOnClickOutside: false,
@@ -175,11 +190,16 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
         buttons: [
           {
             label: "Ja, Kreuz löschen",
-            onClick: toggleCross,
+            onClick: () => {
+              toggleCross();
+              changeModalVisibility(false);
+            },
           },
           {
             label: "Nein, Kreuz behalten",
-            onClick: () => {},
+            onClick: () => {
+              changeModalVisibility(false);
+            },
           },
         ],
       });
@@ -455,6 +475,10 @@ function App() {
       return produce(oldValue, callback);
     });
   };
+
+  if (gameState.uiInfo.isShowingModal) {
+    return null;
+  }
 
   return (
     <GameStateWithSetterContext.Provider value={{ gameState, setGameState }}>
