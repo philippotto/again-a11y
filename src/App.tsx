@@ -1,7 +1,5 @@
 /*
  * Todo:
- * - allow scratching
- *   - colors
  * - helpful tooltips?
  * - save gamestate in localstorage
  *   - "restore button"
@@ -89,6 +87,7 @@ type GameState = {
     inColumns: Array<string>;
   };
   crossedColumnPoints: boolean[];
+  crossedColors: Array<Color>;
   jokers: [boolean, boolean, boolean, boolean, boolean, boolean, boolean, boolean];
   uiInfo: {
     // should not be stored across page loads
@@ -98,23 +97,7 @@ type GameState = {
 
 const JOKER_COUNT = 8;
 const initialGameState: GameState = {
-  grid: [
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-  ],
+  grid: _.range(COL_COUNT).map(() => _.range(ROW_COUNT).map(() => 0)),
   highlight: {
     // - normal
     // - if a specific color
@@ -131,6 +114,7 @@ const initialGameState: GameState = {
   },
   jokers: _.range(JOKER_COUNT).map(() => false) as any,
   crossedColumnPoints: _.range(COL_COUNT).map(() => false) as any,
+  crossedColors: [],
   uiInfo: {
     // should not be stored across page loads
     isShowingModal: false,
@@ -426,8 +410,11 @@ function getBonusPointInfo(gameState: GameState) {
     }
   }
 
-  info.totalBonusPoints =
-    Object.values(info.missingByColor).filter((count) => count === 0).length * 5;
+  for (const color of Object.keys(info.missingByColor) as Color[]) {
+    if (info.missingByColor[color] === 0) {
+      info.totalBonusPoints += gameState.crossedColors.includes(color) ? 3 : 5;
+    }
+  }
 
   return info;
 }
@@ -442,6 +429,15 @@ function Toolbar() {
         oldState.highlight.colors = oldState.highlight.colors.filter((c) => color != c);
       } else {
         oldState.highlight.colors.push(color);
+      }
+    });
+  };
+  const handleCrossColor = (color: Color) => {
+    setGameState((oldState) => {
+      if (oldState.crossedColors.includes(color)) {
+        oldState.crossedColors = oldState.crossedColors.filter((c) => color != c);
+      } else {
+        oldState.crossedColors.push(color);
       }
     });
   };
@@ -461,6 +457,23 @@ function Toolbar() {
   return (
     <div className="toolbar" style={{ display: "flex" }}>
       <div className="buttons" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="color-buttons" style={{ display: "flex" }}>
+          {colors.map((color: Color) => {
+            let content = "";
+            if (gameState.crossedColors.includes(color)) {
+              // Opponent has crossed the color first
+              content = bonusPointInfo.missingByColor[color] === 0 ? "🥈" : "💩";
+            } else {
+              content = bonusPointInfo.missingByColor[color] === 0 ? "🥳" : "";
+            }
+            return (
+              <div className={`cell ${color}`} onClick={() => handleCrossColor(color)}>
+                {content}
+              </div>
+            );
+          })}
+        </div>
+
         <div className="color-buttons" style={{ display: "flex" }}>
           {colors.map((color: Color) => (
             <div
