@@ -5,7 +5,7 @@
  *   - "restore button"
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import _ from "lodash";
 import { produce } from "immer";
@@ -135,6 +135,23 @@ function getField(colIdx: number, rowIdx: number, gameState: GameState) {
   };
 }
 
+function getScroll() {
+  if (window.pageYOffset != undefined) {
+    lastScrollPosition = [pageXOffset, pageYOffset];
+    return lastScrollPosition;
+  } else {
+    var sx,
+      sy,
+      d = document,
+      r = d.documentElement,
+      b = d.body;
+    sx = r.scrollLeft || b.scrollLeft || 0;
+    sy = r.scrollTop || b.scrollTop || 0;
+    lastScrollPosition = [sx, sy];
+    return lastScrollPosition;
+  }
+}
+
 function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
   const { gameState, setGameState } = React.useContext(GameStateWithSetterContext);
 
@@ -147,6 +164,7 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
   const onClick = () => {
     if (!isApproachable(gameState, rowIdx, colIdx, true)) {
       changeModalVisibility(true);
+      getScroll();
       confirmAlert({
         title: "Das Feld ist noch nicht erreichbar.",
         closeOnClickOutside: false,
@@ -166,11 +184,15 @@ function Cell({ colIdx, rowIdx }: { colIdx: number; rowIdx: number }) {
       });
     if (value) {
       changeModalVisibility(true);
+      getScroll();
+
       confirmAlert({
         title: "Das Feld ist bereits abgekreuzt. Kreuz löschen?",
         closeOnClickOutside: false,
         // @ts-ignore
-        afterClose: () => changeModalVisibility(false),
+        afterClose: () => {
+          changeModalVisibility(false);
+        },
         buttons: [
           {
             label: "Ja, Kreuz löschen",
@@ -304,6 +326,11 @@ function Grid() {
 
   const { isColumnComplete } = getStarsAndColumnPoints(gameState);
 
+  const changeModalVisibility = (visibility: boolean) =>
+    setGameState((old: GameState): void => {
+      old.uiInfo.isShowingModal = visibility;
+    });
+
   const bonusRow1 = [];
   const bonusRow2 = [];
   for (const colIdx of _.range(COL_COUNT)) {
@@ -318,6 +345,8 @@ function Grid() {
         });
 
       if (gameState.crossedColumnPoints[colIdx]) {
+        getScroll();
+        changeModalVisibility(true);
         confirmAlert({
           title: "Die Spalte wurde bereits abgekreuzt. Kreuz löschen?",
           closeOnClickOutside: false,
@@ -511,6 +540,7 @@ function Toolbar() {
                     oldState.jokers[jokerIdx] = !oldState.jokers[jokerIdx];
                   });
                 if (gameState.jokers[jokerIdx]) {
+                  getScroll();
                   changeModalVisibility(true);
                   confirmAlert({
                     title: "Der Joker wurde bereits abgekreuzt. Kreuz löschen?",
@@ -580,6 +610,7 @@ function getStarsAndColumnPoints(gameState: GameState) {
   return { missingStarCount, columnPoints, isColumnComplete };
 }
 
+let lastScrollPosition = [0, 0];
 function App() {
   const [gameState, _setGameState] = useState(initialGameState);
   const setGameState = (callback: (state: GameState) => void) => {
@@ -587,6 +618,12 @@ function App() {
       return produce(oldValue, callback);
     });
   };
+
+  useEffect(() => {
+    if (!gameState.uiInfo.isShowingModal) {
+      window.scrollTo(lastScrollPosition[0], lastScrollPosition[1]);
+    }
+  }, [gameState.uiInfo.isShowingModal]);
 
   if (gameState.uiInfo.isShowingModal) {
     return null;
