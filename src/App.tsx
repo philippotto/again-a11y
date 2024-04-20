@@ -1,5 +1,6 @@
 /*
  * Todo:
+ * - improve design?
  * - helpful tooltips?
  * - save gamestate in localstorage
  *   - "restore button"
@@ -489,14 +490,22 @@ function Toolbar() {
         <div className="color-buttons" style={{ display: "flex" }}>
           {colors.map((color: Color) => {
             let content = "";
+            let opacity = 1;
             if (gameState.crossedColors.includes(color)) {
               // Opponent has crossed the color first
               content = bonusPointInfo.missingByColor[color] === 0 ? "🥈" : "💩";
             } else {
-              content = bonusPointInfo.missingByColor[color] === 0 ? "🥳" : "";
+              if (bonusPointInfo.missingByColor[color] > 0) {
+                opacity = 0.3;
+              }
+              content = bonusPointInfo.missingByColor[color] === 0 ? "🥳" : "🥳";
             }
             return (
-              <div className={`cell ${color}`} onClick={() => handleCrossColor(color)}>
+              <div
+                className={`cell ${color}`}
+                style={{ color: `rgba(0, 0, 0, ${opacity})` }}
+                onClick={() => handleCrossColor(color)}
+              >
                 {content}
               </div>
             );
@@ -505,15 +514,17 @@ function Toolbar() {
 
         <div className="color-buttons" style={{ display: "flex" }}>
           {colors.map((color: Color) => (
-            <div
-              className={`cell ${color}`}
-              style={{
-                opacity: getOpacityForColor(gameState, color),
-              }}
-              onClick={() => handleColorClick(color)}
-            >
-              {bonusPointInfo.missingByColor[color]}
-            </div>
+            <>
+              <div
+                className={`cell ${color}`}
+                style={{
+                  opacity: getOpacityForColor(gameState, color),
+                }}
+                onClick={() => handleColorClick(color)}
+              >
+                {bonusPointInfo.missingByColor[color]}
+              </div>
+            </>
           ))}
           <div
             className={`cell white`}
